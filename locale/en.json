@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "Skill switches",
+    "description": "Adds a 技能 (Skills) button to the composer tool row, right after the permission control, that opens a per-Session board of skill switches. Turn a skill ON and its rules apply to every reply at the level you pick — caveman, for example, keeps answering in that mode without you saying \"be brief\" again. Turn it OFF and nothing is removed: the skill stays in the catalog and still answers /skill-name. Levels come from the skill itself (caveman offers lite, full, ultra and the wenyan variants). Each Session keeps its own switches; they live in the Session log, so resume and fork restore them. Uses the skill's own body through the skill registry and registers a same-named prompt section only while a skill is on, so no files are modified. Reads nothing outside the local Host; the board's state comes from GET /skill-switch/state on your own machine.",
+    "detail": "docs/DETAIL.md"
+  }
+}

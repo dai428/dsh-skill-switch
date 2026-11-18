@@ -1,0 +1,12 @@
+- insert:
+    - id: skill-switch
+      name: 'dsh-skill-switch'
+      config:
+        skills:
+          caveman:
+            title: Caveman
+            levels: [lite, full, ultra, wenyan-lite, wenyan-full, wenyan-ultra]
+            # Off by default: the skill stays available on request, and turning
+            # it on is what makes it apply to every reply without being named.
+            defaultEnabled: false
+            defaultLevel: full
