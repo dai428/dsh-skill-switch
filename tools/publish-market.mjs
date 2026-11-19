@@ -15,6 +15,7 @@ import https from 'node:https';
 const UPSTREAM_OWNER = 'awesome-dsh-plugin';
 const UPSTREAM_REPO = 'awesome-dsh-plugin';
 const REPO = 'dsh-skill-switch';
+const NPM_NAME = '@zhangwansen123/dsh-skill-switch';
 const BRANCH = 'add-dsh-skill-switch';
 
 const args = process.argv.slice(2);
@@ -119,13 +120,14 @@ if (ageHours < 24) {
   console.log('warning:  the registry CI rejects repositories younger than 1 day;');
   console.log('          the check re-runs on a fresh snapshot, so retry later if it fails');
 }
-const manifest = await request('GET', 'raw.githubusercontent.com', `/${OWNER}/${REPO}/main/package.json`)
-  .catch((error) => ({ status: 0, text: error.message }));
+// raw.githubusercontent.com does not answer this machine's TLS stack (ECONNRESET),
+// so the manifest is read through the contents API instead.
+const manifest = await api('GET', `/repos/${OWNER}/${REPO}/contents/package.json`);
 if (manifest.status === 200) {
-  const parsed = JSON.parse(manifest.text);
+  const parsed = JSON.parse(Buffer.from(manifest.json.content, 'base64').toString('utf8'));
   console.log(`manifest: dsh.bundle ${parsed.dsh?.bundle ? 'declared' : 'MISSING - this is the top rejection reason'}`);
 } else {
-  console.log(`manifest: could not read package.json over raw.githubusercontent.com (${manifest.status})`);
+  console.log(`manifest: could not read package.json through the contents API (${manifest.status})`);
 }
 
 // Fork, branch, commit one file, open the PR.
@@ -195,7 +197,7 @@ const pr = await apiChecked('POST', `/repos/${UPSTREAM_OWNER}/${UPSTREAM_REPO}/p
     '- `package.json` declares `dsh.bundle` (patch in `cordis.patch.yml`) and `dsh.client`',
     `- Category: \`skill\``,
     '',
-    'Also on npm as `dsh-skill-switch`.',
+    'Also on npm as `' + NPM_NAME + '`.',
   ].join('\n'),
 });
 console.log(`\n${pr.json.html_url}`);

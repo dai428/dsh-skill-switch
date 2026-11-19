@@ -1,12 +1,12 @@
-# Publishing dsh-skill-switch
+# Publishing @zhangwansen123/dsh-skill-switch
 
-Everything that does not need an account is done. Three scripts do the rest; each
-one takes a token from the environment and exits without writing anything when
-you pass `--dry-run`.
+Status: **published on all four channels.** This file records what it took, so a
+later version can repeat it.
 
 ## Why scripts instead of `git push` and a browser
 
-This machine cannot reach the GitHub web host. Measured here:
+This machine originally could not reach the GitHub web host. Measured before the
+proxy was switched on:
 
 | host | result |
 |---|---|
@@ -14,98 +14,103 @@ This machine cannot reach the GitHub web host. Measured here:
 | `raw.githubusercontent.com` | `read ECONNRESET` (12 s) |
 | `api.github.com` | 200 (387 ms) |
 | `uploads.github.com` | 302 (619 ms) |
-| `objects.githubusercontent.com` | 404 (2.5 s) |
-| `registry.npmjs.org` | 404 for `dsh-skill-switch` (name is free) |
-| `www.npmjs.com` | 200 |
+| `registry.npmjs.org` | 200 |
 
-So logging in through a browser is not possible here — the login page never
-loads. The REST API works, and it covers everything a push would do: create the
-repo, upload every blob, commit, set topics, cut a release, upload the asset,
-fork the registry, open the pull request. No git remote, no `gh`, no browser.
+With clash-verge running (`127.0.0.1:7897`) the web host answers, but the scripts
+still talk straight to `api.github.com` **without** a proxy: tunneling CONNECT
+through 7897 dies with `socket disconnected before secure TLS connection was
+established`, while a direct connection works. Do not set `HTTPS_PROXY` for them.
 
-## 0. Done
+## Channels
 
-- Package `dsh-skill-switch` 1.0.0, `engines.dsh: ">=0.2.2-rc.2 <0.3.0"` (a plain
-  `>=0.2.0` does **not** match the running `0.2.2-rc.3`).
-- `dsh.bundle.patch` + `dsh.client` + `publishConfig.access` + `license` + `files`.
-- `dist/dsh-skill-switch-1.0.0.tgz` — 18 files, 37883 bytes, install-verified.
-- Five test suites green.
-- `assets/icon-180.png` (raster, GitHub-hosted, market-legal).
-- Local commit `d1802ea`, 22 tracked files.
+| channel | address |
+|---|---|
+| GitHub | https://github.com/dai428/dsh-skill-switch |
+| Release | `v1.0.1` → asset `dsh-skill-switch.tgz` (version-free on purpose) |
+| npm | `@zhangwansen123/dsh-skill-switch` |
+| Market PR | https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/pull/16753 |
 
-## 1. GitHub repository
+Install any of these ways:
+
+```sh
+dsh plugin add @zhangwansen123/dsh-skill-switch
+dsh plugin add https://github.com/dai428/dsh-skill-switch/releases/latest/download/dsh-skill-switch.tgz
+dsh plugin add ./zhangwansen123-dsh-skill-switch-1.0.1.tgz
+```
+
+## The rename, and why the names differ
+
+npm rejected the plain name:
+
+```
+403 Package name too similar to existing package dsh-skillswitch;
+try renaming your package to '@zhangwansen123/dsh-skill-switch'
+```
+
+So the npm name is scoped while the GitHub repository keeps `dsh-skill-switch`.
+The client module id follows the package name (`@zhangwansen123/dsh-skill-switch`),
+which matches how `@maci0/dsh-caveman` registers its client.
+
+## Scripts
+
+Each takes a token from the environment, and `--dry-run` writes nothing.
 
 ```powershell
 cd 'C:\Users\Administrator\Documents\deepseek-harness\default-workspace\skill-switch'
-$env:GITHUB_TOKEN = 'ghp_...'          # classic token with `repo`, or fine-grained with Contents + Administration + Releases: read/write
 
-node tools/publish-github.mjs --owner <login> --dry-run   # lists every file, creates nothing
-node tools/publish-github.mjs --owner <login>
-```
+$env:GITHUB_TOKEN = 'ghp_...'      # classic token, scope `repo`
+$env:NPM_TOKEN    = 'npm_...'      # classic *Automation* token (must bypass 2FA)
 
-What it does, in order: `GET /user` (fails fast on a bad token) → creates the
-public repo if missing → uploads one blob per tracked file → one root commit with
-the local commit message → `refs/heads/main` → `default_branch` → topics
-(`dsh-plugin`, `dsh`, `deepseek-harness`, `skills`) → release `v1.0.0` → uploads
-the tarball as **`dsh-skill-switch.tgz`** (version-free on purpose: `latest/download/`
-takes the filename literally, so a versioned asset 404s after the next release).
+node tools/publish-github.mjs --owner dai428 --dry-run
+node tools/publish-github.mjs --owner dai428
 
-Re-running is safe: blobs are content-addressed, the commit is appended to
-`main`, and an existing release or asset is skipped rather than duplicated.
-
-## 2. npm
-
-```powershell
-$env:NPM_TOKEN = 'npm_...'             # automation token with publish rights
 node tools/publish-npm.mjs --dry-run
 node tools/publish-npm.mjs
+
+node tools/publish-market.mjs --owner dai428 --dry-run
+node tools/publish-market.mjs --owner dai428
 ```
 
-The token goes into a throwaway `.npmrc` under `%TEMP%` and is handed to npm via
-`--userconfig`, so it never lands in your real `.npmrc` and never appears in a
-logged command line. Publish to npm and users install prebuilt — no
-`allowBuilds` approval, which is the friction the registry docs warn about.
+Newer npm granular tokens are refused with `Two-factor authentication or granular
+access token with bypass 2fa enabled is required`; only a classic Automation token
+goes through. The token is written to a throwaway `.npmrc` under `%TEMP%` and
+handed to npm via `--userconfig`, so it never touches the real `.npmrc`.
 
-## 3. Tarball — done
+## Gotchas that cost time
 
-`dist/dsh-skill-switch-1.0.0.tgz`, 18 files, 37883 bytes. Verified by removing the
-plugin from the profile and reinstalling from the tarball alone:
+- **A repository with no commits has no git objects.** `POST /git/blobs` answers
+  `409 Git Repository is empty`, and the ref lookup answers **409, not 404**, so
+  the emptiness test must accept both. `publish-github.mjs` seeds the repo through
+  `PUT /contents/LICENSE` first.
+- `PUT /contents/{path}` wants the payload nested: `body: { message, content }`.
+  Passing the object directly gives `400 Body should be a JSON object`.
+- **An empty repo also breaks `PUT /contents`** unless the parent commit exists;
+  the seed commit is then reused as the parent of the real tree.
+- **raw.githubusercontent.com does not answer node's TLS stack here** even when
+  the browser fetches the same URL fine (200, verified in-page). So verification
+  reads `package.json` through the contents API, not raw.
+- `npm publish` answered **202**, not 201, and the package document stayed 404 for
+  about five minutes while the search index already listed it. It resolved on its
+  own — do not re-publish on 202, poll instead.
+- `node.exe` here is v22; the DSH runtime is v24. Tests must run under
+  `ELECTRON_RUN_AS_NODE=1 "$env:DSH_NODE_EXECUTABLE"`.
+- `npm.cmd` cannot be spawned without a shell on Windows (`EINVAL`); call
+  `npm-cli.js` with the current node instead.
+- `npm pack` must run with the plugin directory as the working directory,
+  otherwise npm walks up and reports `ENOENT ... default-workspace\package.json`.
 
-```
-plugin_manager remove_bundle dsh-skill-switch
-plugin_manager install_bundle ...\dist\dsh-skill-switch-1.0.0.tgz
-# => pnpm: + dsh-skill-switch 1.0.0   (a real package, not a link)
-# => slot occupants unchanged: todo 0 / goal 10 / skill-switch 15 / queue 20
-```
+## Pre-flight the registry CI checks
 
-Anyone can install it without any of the above:
+The market's CI, in order: entry count → `dsh.bundle` declared → **repository at
+least 1 day old** → `awesome-lint` and the site build. `publish-market.mjs` prints
+the age and the `dsh.bundle` result before opening the PR. The listing YAML lives
+at `data/plugins/dai428__dsh-skill-switch.yml`; `contrib/` holds the same file as
+a reference copy.
 
-```
-dsh plugin add ./dsh-skill-switch-1.0.0.tgz
-```
-
-## 4. Market listing
-
-The market does not host entries. `dshmarket` reads
-`https://cdn.jsdelivr.net/npm/dsh-plugin-catalog/index.json`, generated from
-`github.com/awesome-dsh-plugin/awesome-dsh-plugin` — one YAML per plugin under
-`data/plugins/<owner>__<repo>.yml`, added by pull request.
-
-```powershell
-node tools/publish-market.mjs --owner <login> --dry-run
-node tools/publish-market.mjs --owner <login>
-```
-
-It forks the registry, commits the single YAML on a branch, and opens the PR. It
-prints two pre-flight results the CI would otherwise fail on: repository age (the
-check needs **1 day**) and whether `dsh.bundle` is declared (the top rejection
-reason). If the repo is younger than a day it warns and continues — the CI re-runs
-on a fresh snapshot.
-
-### Differentiation from the existing entry
+## Differentiation from the existing entry
 
 The catalog already lists `@jacksun1994/dsh-skill-switcher` (category `skill`).
-Both switch skills, so review will ask what is new. The honest differences:
+Both switch skills, so review will ask what is new:
 
 | | dsh-skill-switcher | dsh-skill-switch (this) |
 |---|---|---|
@@ -115,17 +120,22 @@ Both switch skills, so review will ask what is new. The honest differences:
 | Levels | none | filtered body per level (caveman: lite → wenyan-ultra) |
 | Persistence | file state | Session log, survives resume/fork |
 
-The submission text leads with the level picker and "no file writes" — that is the
-part not covered yet.
+## Releasing 1.0.2 and later
 
-## 5. After publishing
+1. Bump `version` in `package.json` (the scripts read it; nothing else hardcodes it).
+2. `node 'C:\Tools\nodejs\node_modules\npm\bin\npm-cli.js' pack --pack-destination dist`
+3. Run the five tests under the Harness runtime.
+4. `publish-npm.mjs`, then `publish-github.mjs` (it replaces the release asset in
+   place and rewrites the notes when the install line moves).
+5. Poll `https://registry.npmjs.org/@zhangwansen123%2Fdsh-skill-switch` until
+   `dist-tags.latest` is the new version.
+6. Bump the `version` inside the market entry only if the URL layout changes; the
+   listing points at the repository, not at a version.
 
-- [ ] repo exists, `main` pushed, topics set
-- [ ] release `v1.0.0` with `dsh-skill-switch.tgz` attached
-- [ ] `npm view dsh-skill-switch version` → `1.0.0`
-- [ ] market PR opened
-- [ ] replace `OWNER` in `contrib/OWNER__dsh-skill-switch.yml` (the live copy is
-      generated by `publish-market.mjs`; the file here is only a template)
-- [ ] add `repository` / `bugs` / `homepage` to `package.json`, then bump the
-      version and re-pack — publishing metadata then editing it leaves npm and the
-      repo disagreeing
+## After publishing
+
+- [x] repo exists, `main` pushed, topics set
+- [x] release with a version-free `dsh-skill-switch.tgz`
+- [x] `@zhangwansen123/dsh-skill-switch` on npm
+- [x] market PR opened
+- [ ] market PR reviewed and merged (external; the entry appears within a day of merge)

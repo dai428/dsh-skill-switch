@@ -17,10 +17,14 @@ import { createHash } from 'node:crypto';
 import https from 'node:https';
 import path from 'node:path';
 
+const ROOT = path.resolve(import.meta.dirname, '..');
+const manifest = JSON.parse(readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
+
 const REPO = 'dsh-skill-switch';
+const VERSION = manifest.version;
 // npm's packaged filename drops the @scope/ and joins with a dash.
-const NPM_NAME = '@zhangwansen123/dsh-skill-switch';
-const TARBALL = `dist/${NPM_NAME.replace(/^@/, '').replace('/', '-')}-1.0.0.tgz`;
+const NPM_NAME = manifest.name;
+const TARBALL = `dist/${NPM_NAME.replace(/^@/, '').replace('/', '-')}-${VERSION}.tgz`;
 const RELEASE_ASSET = 'dsh-skill-switch.tgz';
 const TOPICS = ['dsh-plugin', 'dsh', 'deepseek-harness', 'skills'];
 
@@ -35,8 +39,6 @@ const TOKEN = process.env.GITHUB_TOKEN ?? argv('--token');
 
 if (!OWNER) fail('missing --owner <github login>');
 if (!TOKEN && !DRY) fail('missing GITHUB_TOKEN (a fine-grained or classic token with repo scope)');
-
-const ROOT = path.resolve(import.meta.dirname, '..');
 
 function fail(message) {
   console.error(`error: ${message}`);
@@ -230,26 +232,26 @@ async function main() {
     'dsh plugin add https://github.com/' + OWNER + '/' + REPO + '/releases/latest/download/' + RELEASE_ASSET,
     '```',
   ].join('\n');
-  let release = await api('GET', `/repos/${OWNER}/${REPO}/releases/tags/v1.0.0`);
+  let release = await api('GET', `/repos/${OWNER}/${REPO}/releases/tags/v${VERSION}`);
   if (release.status === 404) {
     release = await apiChecked('POST', `/repos/${OWNER}/${REPO}/releases`, {
       body: {
-        tag_name: 'v1.0.0',
-        name: '@zhangwansen123/dsh-skill-switch 1.0.0',
+        tag_name: `v${VERSION}`,
+        name: `${NPM_NAME} ${VERSION}`,
         body: releaseBody,
       },
     });
-    console.log('created release v1.0.0');
+    console.log(`created release v${VERSION}`);
   } else {
     // The install line names the package, so a renamed package has to rewrite the
     // notes even though the tag and asset stay put.
     if (release.json.body !== releaseBody) {
       await apiChecked('PATCH', `/repos/${OWNER}/${REPO}/releases/${release.json.id}`, {
-        body: { name: '@zhangwansen123/dsh-skill-switch 1.0.0', body: releaseBody },
+        body: { name: `${NPM_NAME} ${VERSION}`, body: releaseBody },
       });
-      console.log('updated release v1.0.0 notes');
+      console.log(`updated release v${VERSION} notes`);
     } else {
-      console.log('release v1.0.0 already exists');
+      console.log(`release v${VERSION} already exists`);
     }
   }
 

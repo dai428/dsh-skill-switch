@@ -19,8 +19,8 @@ The button reads **技能** (**Skills**) and appears only while a Session is ope
 # from npm
 dsh plugin add @zhangwansen123/dsh-skill-switch
 
-# from a tarball
-dsh plugin add ./dsh-skill-switch-1.0.0.tgz
+# from a tarball (npm pack writes this into dist/)
+dsh plugin add ./zhangwansen123-dsh-skill-switch-1.0.1.tgz
 
 # from a checkout
 dsh plugin add ./skill-switch

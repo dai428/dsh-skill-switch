@@ -1,9 +1,17 @@
 {
   "name": "@zhangwansen123/dsh-skill-switch",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Per-session switches for DSH skills: turn one on once and its rules apply to every reply at the level you picked, without naming it again.",
   "type": "module",
   "main": "index.js",
+  "homepage": "https://github.com/dai428/dsh-skill-switch#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dai428/dsh-skill-switch.git"
+  },
+  "bugs": {
+    "url": "https://github.com/dai428/dsh-skill-switch/issues"
+  },
   "exports": {
     ".": "./index.js",
     "./client": "./client.js",
