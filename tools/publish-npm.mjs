@@ -4,6 +4,10 @@
 //   $env:NPM_TOKEN = 'npm_...'
 //   node tools/publish-npm.mjs --dry-run
 //   node tools/publish-npm.mjs
+//   $env:NPM_OTP = '123456'; node tools/publish-npm.mjs
+//
+// The registry rejects publishes from a token without 2FA bypass unless the
+// one-time code rides along, so NPM_OTP is forwarded as npm's --otp flag.
 //
 // The token is written to a throwaway .npmrc inside the temp directory and
 // passed to npm through --userconfig, so nothing lands in the user's real
@@ -24,6 +28,8 @@ const NPM_CLI = process.env.NPM_CLI ?? 'C:\\Tools\\nodejs\\node_modules\\npm\\bi
 const args = process.argv.slice(2);
 const DRY = args.includes('--dry-run');
 const TOKEN = process.env.NPM_TOKEN;
+// npm publishes without a 2FA-bypass token need the live code for this request.
+const OTP = process.env.NPM_OTP;
 
 const manifest = JSON.parse(readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
 
@@ -74,7 +80,9 @@ const dir = mkdtempSync(path.join(os.tmpdir(), 'dsh-npmrc-'));
 const npmrc = path.join(dir, '.npmrc');
 try {
   writeFileSync(npmrc, `registry=${REGISTRY}\n//registry.npmjs.org/:_authToken=${TOKEN}\n`, 'utf8');
-  const out = run(['publish', '--userconfig', npmrc, '--registry', REGISTRY], {
+  const publishArgs = ['publish', '--userconfig', npmrc, '--registry', REGISTRY];
+  if (OTP) publishArgs.push('--otp', OTP);
+  const out = run(publishArgs, {
     npm_config_registry: REGISTRY,
   });
   console.log(out.trim());
@@ -82,7 +90,7 @@ try {
   rmSync(dir, { recursive: true, force: true });
 }
 
-const tarball = path.join(ROOT, 'dist', `dsh-skill-switch-${manifest.version}.tgz`);
+const tarball = path.join(ROOT, 'dist', `${manifest.name.replace(/^@/, '').replace('/', '-')}-${manifest.version}.tgz`);
 const shasum = existsSync(tarball)
   ? createHash('sha1').update(readFileSync(tarball)).digest('hex')
   : 'not packed yet';

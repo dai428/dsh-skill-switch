@@ -1,4 +1,4 @@
-# dsh-skill-switch
+# @zhangwansen123/dsh-skill-switch
 
 Per-session switches for DSH skills, beside the permission control in the composer.
 
@@ -17,7 +17,7 @@ The button reads **技能** (**Skills**) and appears only while a Session is ope
 
 ```sh
 # from npm
-dsh plugin add dsh-skill-switch
+dsh plugin add @zhangwansen123/dsh-skill-switch
 
 # from a tarball
 dsh plugin add ./dsh-skill-switch-1.0.0.tgz
@@ -27,6 +27,8 @@ dsh plugin add ./skill-switch
 ```
 
 Or install it from the plugin market. No build step: the package ships its own sources and has no runtime dependencies.
+
+The GitHub repository is [dai428/dsh-skill-switch](https://github.com/dai428/dsh-skill-switch); the repository name and the npm name differ only because npm already had a package named `dsh-skillswitch`.
 
 Requires DSH `>=0.2.2-rc.2 <0.3.0`.
 
@@ -61,7 +63,7 @@ Rows come from the Session catalog, so a newly installed skill provider shows up
 
 ```yaml
 - id: skill-switch
-  name: 'dsh-skill-switch'
+  name: '@zhangwansen123/dsh-skill-switch'
   config:
     skills:
       caveman:

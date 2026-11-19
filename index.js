@@ -19,7 +19,7 @@
  *   an always-on ruleset; a chosen level contributes the skill body filtered
  *   to that level.
  *
- * @module dsh-skill-switch
+ * @module @zhangwansen123/dsh-skill-switch
  */
 
 /** Route the browser half reads for the switch board. */

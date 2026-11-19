@@ -18,7 +18,9 @@ import https from 'node:https';
 import path from 'node:path';
 
 const REPO = 'dsh-skill-switch';
-const TARBALL = 'dist/dsh-skill-switch-1.0.0.tgz';
+// npm's packaged filename drops the @scope/ and joins with a dash.
+const NPM_NAME = '@zhangwansen123/dsh-skill-switch';
+const TARBALL = `dist/${NPM_NAME.replace(/^@/, '').replace('/', '-')}-1.0.0.tgz`;
 const RELEASE_ASSET = 'dsh-skill-switch.tgz';
 const TOPICS = ['dsh-plugin', 'dsh', 'deepseek-harness', 'skills'];
 
@@ -218,34 +220,52 @@ async function main() {
   console.log(`topics: ${TOPICS.join(', ')}`);
 
   // A release-hosted tarball is the install path that needs no build permission.
+  const releaseBody = [
+    'Turn a skill on for every reply in one session, at the level you pick.',
+    '',
+    'Install either way:',
+    '',
+    '```',
+    `dsh plugin add ${NPM_NAME}`,
+    'dsh plugin add https://github.com/' + OWNER + '/' + REPO + '/releases/latest/download/' + RELEASE_ASSET,
+    '```',
+  ].join('\n');
   let release = await api('GET', `/repos/${OWNER}/${REPO}/releases/tags/v1.0.0`);
   if (release.status === 404) {
     release = await apiChecked('POST', `/repos/${OWNER}/${REPO}/releases`, {
       body: {
         tag_name: 'v1.0.0',
-        name: 'dsh-skill-switch 1.0.0',
-        body: [
-          'Turn a skill on for every reply in one session, at the level you pick.',
-          '',
-          'Install either way:',
-          '',
-          '```',
-          'dsh plugin add dsh-skill-switch',
-          'dsh plugin add https://github.com/' + OWNER + '/' + REPO + '/releases/latest/download/' + RELEASE_ASSET,
-          '```',
-        ].join('\n'),
+        name: '@zhangwansen123/dsh-skill-switch 1.0.0',
+        body: releaseBody,
       },
     });
     console.log('created release v1.0.0');
   } else {
-    console.log('release v1.0.0 already exists');
+    // The install line names the package, so a renamed package has to rewrite the
+    // notes even though the tag and asset stay put.
+    if (release.json.body !== releaseBody) {
+      await apiChecked('PATCH', `/repos/${OWNER}/${REPO}/releases/${release.json.id}`, {
+        body: { name: '@zhangwansen123/dsh-skill-switch 1.0.0', body: releaseBody },
+      });
+      console.log('updated release v1.0.0 notes');
+    } else {
+      console.log('release v1.0.0 already exists');
+    }
   }
 
   const assets = await api('GET', `/repos/${OWNER}/${REPO}/releases/${release.json.id}/assets`);
   const published = Array.isArray(assets.json) ? assets.json : [];
-  if (published.some((asset) => asset.name === RELEASE_ASSET)) {
-    console.log(`asset ${RELEASE_ASSET} already uploaded`);
+  const previous = published.find((asset) => asset.name === RELEASE_ASSET);
+  const wanted = statSync(tarball).size;
+  if (previous && previous.size === wanted) {
+    console.log(`asset ${RELEASE_ASSET} already uploaded (${wanted} bytes)`);
   } else {
+    // The name is fixed for `latest/download/`, so a rebuilt tarball replaces the
+    // old bytes instead of piling up a second asset with the same name.
+    if (previous) {
+      await apiChecked('DELETE', `/repos/${OWNER}/${REPO}/releases/assets/${previous.id}`);
+      console.log(`removed stale ${RELEASE_ASSET} (${previous.size} bytes)`);
+    }
     const upload = await request(
       'POST',
       'uploads.github.com',
@@ -253,7 +273,7 @@ async function main() {
       { body: readFileSync(tarball), raw: true, headers: { 'Content-Type': 'application/gzip' } },
     );
     if (upload.status >= 400) fail(`asset upload -> ${upload.status} ${upload.text.slice(0, 200)}`);
-    console.log(`uploaded ${RELEASE_ASSET} (${statSync(tarball).size} bytes)`);
+    console.log(`uploaded ${RELEASE_ASSET} (${wanted} bytes)`);
   }
 
   console.log(`\nhttps://github.com/${OWNER}/${REPO}`);

@@ -57,7 +57,7 @@ async function mountClient(options) {
   globalThis.window = {
     __ModuleLoader__: {
       load(definition) {
-        assert.equal(definition.id, 'dsh-skill-switch', 'registers under its package name')
+        assert.equal(definition.id, '@zhangwansen123/dsh-skill-switch', 'registers under its package name')
         plugin = definition.factory((spec) => {
           assert.equal(spec, 'react', 'the only module request is react')
           return React

@@ -16,7 +16,7 @@
  */
 
 window.__ModuleLoader__.load({
-  id: 'dsh-skill-switch',
+  id: '@zhangwansen123/dsh-skill-switch',
 
   factory: (require) => {
     const module = { exports: {} }

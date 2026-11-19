@@ -1,5 +1,5 @@
 {
-  "name": "dsh-skill-switch",
+  "name": "@zhangwansen123/dsh-skill-switch",
   "version": "1.0.0",
   "description": "Per-session switches for DSH skills: turn one on once and its rules apply to every reply at the level you picked, without naming it again.",
   "type": "module",
